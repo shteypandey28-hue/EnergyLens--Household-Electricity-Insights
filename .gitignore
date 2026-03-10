@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.production
+
+# Build output
+dist/
+build/
+
+# Uploaded files
+uploads/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# TypeScript build artifacts
+*.js.map
+*.d.ts.map
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test files (one-off scripts, not real tests)
+backend/test-auth.ts
+backend/test-local-auth.js
+
+# IDE
+.vscode/
+.idea/
