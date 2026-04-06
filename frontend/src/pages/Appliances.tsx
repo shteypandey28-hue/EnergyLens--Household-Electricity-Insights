@@ -208,7 +208,7 @@ export const Appliances: React.FC = () => {
 
     const fetchAppliances = async () => {
         try {
-            const res = await axios.get('http://localhost:5001/api/usage/appliances');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances`);
             setAppliances(res.data);
         } catch (e) { console.error('Fetch appliances', e); }
     };
@@ -217,7 +217,7 @@ export const Appliances: React.FC = () => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            await axios.post('http://localhost:5001/api/usage/appliances', {
+            await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances`, {
                 name,
                 type,
                 wattage: Number(wattage),
@@ -248,7 +248,7 @@ export const Appliances: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!confirm('Remove this appliance?')) return;
         try {
-            await axios.delete(`http://localhost:5001/api/usage/appliances/${id}`);
+            await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances/${id}`);
             setAppliances(prev => prev.filter(a => a._id !== id));
         } catch (e) { console.error('Delete appliance', e); }
     };
@@ -256,7 +256,7 @@ export const Appliances: React.FC = () => {
     const handleServiceSave = async (id: string, date: string, notes: string) => {
         try {
             // PATCH to update lastServiceDate and serviceNotes
-            const res = await axios.patch(`http://localhost:5001/api/usage/appliances/${id}/service`, {
+            const res = await axios.patch(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances/${id}/service`, {
                 lastServiceDate: date,
                 serviceNotes: notes,
             });

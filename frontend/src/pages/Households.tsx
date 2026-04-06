@@ -49,7 +49,7 @@ export const Households: React.FC = () => {
     const fetchHouseholds = async () => {
         setIsFetching(true);
         try {
-            const res = await axios.get('http://localhost:5001/api/households');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/households`);
             setHouseholds(res.data);
         } catch {
             // Show demo fallback
@@ -66,10 +66,10 @@ export const Households: React.FC = () => {
         setIsLoading(true);
         try {
             if (editId) {
-                const res = await axios.put(`http://localhost:5001/api/households/${editId}`, form);
+                const res = await axios.put(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/households/${editId}`, form);
                 setHouseholds(prev => prev.map(h => h._id === editId ? res.data : h));
             } else {
-                const res = await axios.post('http://localhost:5001/api/households', form);
+                const res = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/households`, form);
                 setHouseholds(prev => [...prev, res.data]);
             }
             setShowForm(false);
@@ -84,7 +84,7 @@ export const Households: React.FC = () => {
 
     const handleSetActive = async (id: string) => {
         try {
-            await axios.put(`http://localhost:5001/api/households/${id}/activate`);
+            await axios.put(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/households/${id}/activate`);
             setHouseholds(prev => prev.map(h => ({ ...h, isDefault: h._id === id })));
         } catch (err: any) {
             alert(err.response?.data?.message || 'Failed to set active household');
@@ -94,7 +94,7 @@ export const Households: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!window.confirm('Delete this household?')) return;
         try {
-            await axios.delete(`http://localhost:5001/api/households/${id}`);
+            await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/households/${id}`);
             setHouseholds(prev => prev.filter(h => h._id !== id));
         } catch (err: any) {
             alert(err.response?.data?.message || 'Cannot delete');

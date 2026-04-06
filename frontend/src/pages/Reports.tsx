@@ -10,7 +10,7 @@ export const Reports: React.FC = () => {
     const handleDownloadCSV = async () => {
         setIsLoading(true);
         try {
-            const res = await axios.get('http://localhost:5001/api/usage/readings');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`);
             const readings = res.data;
 
             // Convert to CSV

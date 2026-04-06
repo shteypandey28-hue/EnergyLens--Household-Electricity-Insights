@@ -25,7 +25,7 @@ export const ResetPassword: React.FC = () => {
         setIsLoading(true);
         setError('');
         try {
-            await axios.post(`http://localhost:5001/api/auth/reset-password/${token}`, { password });
+            await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/auth/reset-password/${token}`, { password });
             setSuccess(true);
             setTimeout(() => navigate('/login'), 3000);
         } catch (err: any) {

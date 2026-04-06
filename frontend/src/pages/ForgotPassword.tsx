@@ -21,7 +21,7 @@ export const ForgotPassword: React.FC = () => {
         setIsLoading(true);
         setError('');
         try {
-            const res = await axios.post('http://localhost:5001/api/auth/forgot-password', { email });
+            const res = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/auth/forgot-password`, { email });
             setMessage(res.data.message);
             // Demo: show reset link directly
             if (res.data.resetToken) {

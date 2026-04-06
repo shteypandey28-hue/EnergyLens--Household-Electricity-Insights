@@ -25,7 +25,7 @@ export const Usage: React.FC = () => {
 
     const fetchReadings = async () => {
         try {
-            const res = await axios.get('http://localhost:5001/api/usage/readings');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`);
             setReadings(res.data);
         } catch (error) {
             console.error("Error fetching readings", error);
@@ -38,7 +38,7 @@ export const Usage: React.FC = () => {
         setMessage({ type: '', text: '' });
 
         try {
-            await axios.post('http://localhost:5001/api/usage/readings', {
+            await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`, {
                 date,
                 unitsConsumed: Number(units),
                 source: 'manual'

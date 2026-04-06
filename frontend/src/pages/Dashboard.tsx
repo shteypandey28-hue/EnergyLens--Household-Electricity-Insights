@@ -149,7 +149,7 @@ export const Dashboard: React.FC = () => {
 
     const fetchDashboardData = useCallback(async () => {
         try {
-            const res = await axios.get('http://localhost:5001/api/usage/readings');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`);
             setReadings(res.data);
         } catch {
             setReadings([]);

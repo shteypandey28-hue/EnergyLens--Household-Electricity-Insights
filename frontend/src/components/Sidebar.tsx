@@ -120,7 +120,7 @@ export const Sidebar: React.FC = () => {
                             <div className={`h-8 w-8 rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm ${!user.profilePicture ? (planColors[user.role as keyof typeof planColors] || planColors.free) : ''} bg-gradient-to-br`}>
                                 {user.profilePicture ? (
                                     <img 
-                                        src={user.profilePicture.startsWith('http') ? user.profilePicture : `http://localhost:5001${user.profilePicture}`} 
+                                        src={user.profilePicture.startsWith('http') ? user.profilePicture : `${import.meta.env.VITE_API_URL || "http://localhost:5001"}${user.profilePicture}`} 
                                         alt={user.name} 
                                         className="h-full w-full object-cover" 
                                     />

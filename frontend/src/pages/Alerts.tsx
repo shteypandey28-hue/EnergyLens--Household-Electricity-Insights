@@ -49,7 +49,7 @@ export const Alerts: React.FC = () => {
     const fetchAlerts = async () => {
         setIsLoading(true);
         try {
-            const res = await axios.get('http://localhost:5001/api/alerts');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/alerts`);
             if (res.data.alerts?.length > 0) setAlerts(res.data.alerts);
         } catch {
             // use demo alerts
@@ -62,21 +62,21 @@ export const Alerts: React.FC = () => {
 
     const markRead = async (id: string) => {
         try {
-            await axios.put(`http://localhost:5001/api/alerts/${id}/read`);
+            await axios.put(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/alerts/${id}/read`);
         } catch { }
         setAlerts(prev => prev.map(a => a._id === id ? { ...a, isRead: true } : a));
     };
 
     const markAllRead = async () => {
         try {
-            await axios.put('http://localhost:5001/api/alerts/mark-all-read');
+            await axios.put(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/alerts/mark-all-read`);
         } catch { }
         setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
     };
 
     const deleteAlert = async (id: string) => {
         try {
-            await axios.delete(`http://localhost:5001/api/alerts/${id}`);
+            await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/alerts/${id}`);
         } catch { }
         setAlerts(prev => prev.filter(a => a._id !== id));
     };

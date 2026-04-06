@@ -49,14 +49,32 @@ app.get('/', (_req, res) => {
     });
 });
 
+// DB connection health check
+app.get('/health/db', (_req, res) => {
+    const state = mongoose.connection.readyState;
+    // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+    const stateMap: Record<number, string> = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+    const uri = process.env.MONGO_URI || '';
+    res.json({
+        db: stateMap[state] || 'unknown',
+        readyState: state,
+        uriSet: !!uri,
+        uriPrefix: uri.substring(0, 30), // Show first 30 chars only (safe)
+    });
+});
+
 // Global Error Handler
 app.use(errorHandler);
 
 // ─── Database ────────────────────────────────────────────────
 mongoose
     .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/energylens')
-    .then(() => console.log('✅ MongoDB connected'))
-    .catch((err) => console.error('❌ MongoDB connection error:', err));
+    .then(() => console.log('✅ MongoDB connected successfully'))
+    .catch((err) => {
+        console.error('❌ MongoDB connection error name:', err?.name);
+        console.error('❌ MongoDB connection error message:', err?.message);
+        console.error('❌ MongoDB connection error code:', err?.code);
+    });
 
 app.listen(PORT, () => {
     console.log(`🚀 EnergyLens Server running on http://localhost:${PORT}`);

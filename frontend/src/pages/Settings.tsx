@@ -78,7 +78,7 @@ export const Settings: React.FC = () => {
         setIsLoadingStatus(true);
         try {
             const token = localStorage.getItem('token');
-            const { data } = await axios.get('http://localhost:5001/api/subscription/status', {
+            const { data } = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/subscription/status`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setSubscriptionStatus(data);
@@ -93,7 +93,7 @@ export const Settings: React.FC = () => {
         setIsTogglingAutoRenew(true);
         try {
             const token = localStorage.getItem('token');
-            const { data } = await axios.patch('http://localhost:5001/api/subscription/toggle-auto-renew', {}, {
+            const { data } = await axios.patch(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/subscription/toggle-auto-renew`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setSubscriptionStatus(prev => prev ? { ...prev, autoRenew: data.autoRenew } : null);
@@ -127,7 +127,7 @@ export const Settings: React.FC = () => {
         e.preventDefault();
         setIsChangingPwd(true);
         try {
-            await axios.put('http://localhost:5001/api/auth/change-password', { currentPassword, newPassword });
+            await axios.put(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/auth/change-password`, { currentPassword, newPassword });
             showMsg('Password changed successfully!', 'success');
             setCurrentPassword(''); setNewPassword('');
         } catch (err: any) {
@@ -161,7 +161,7 @@ export const Settings: React.FC = () => {
                         <div className="h-20 w-20 rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-dark-border bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-inner">
                             {user?.profilePicture ? (
                                 <img 
-                                    src={user.profilePicture.startsWith('http') ? user.profilePicture : `http://localhost:5001${user.profilePicture}`} 
+                                    src={user.profilePicture.startsWith('http') ? user.profilePicture : `${import.meta.env.VITE_API_URL || "http://localhost:5001"}${user.profilePicture}`} 
                                     alt="Profile" 
                                     className="h-full w-full object-cover" 
                                 />
@@ -185,7 +185,7 @@ export const Settings: React.FC = () => {
                                     try {
                                         setIsSaving(true);
                                         const token = localStorage.getItem('token');
-                                        const res = await axios.post('http://localhost:5001/api/auth/profile-picture', formData, {
+                                        const res = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/auth/profile-picture`, formData, {
                                             headers: { 
                                                 'Content-Type': 'multipart/form-data',
                                                 Authorization: `Bearer ${token}`
