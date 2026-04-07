@@ -5,6 +5,20 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+// Load Razorpay checkout script dynamically
+function loadRazorpay(): Promise<boolean> {
+    return new Promise((resolve) => {
+        if ((window as any).Razorpay) return resolve(true);
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+    });
+}
+
 interface PlanFeature {
     label: string;
     free: boolean | string;
@@ -46,14 +60,67 @@ export const Upgrade: React.FC = () => {
     const handleUpgrade = async (plan: 'basic' | 'pro') => {
         setIsLoading(plan);
         try {
-            const res = await axios.post('http://localhost:5001/api/subscription/subscribe', { plan });
-            setSuccess(res.data.message);
-            // Refresh user state after 1.5s
-            setTimeout(() => { window.location.reload(); }, 1500);
+            const token = localStorage.getItem('token');
+            const headers = { Authorization: `Bearer ${token}` };
+
+            // Step 1: Load Razorpay SDK
+            const loaded = await loadRazorpay();
+            if (!loaded) {
+                alert('Razorpay SDK failed to load. Check your internet connection.');
+                setIsLoading(null);
+                return;
+            }
+
+            // Step 2: Create order on backend
+            const planKey = plan === 'pro' ? 'premium' : 'basic';
+            const { data } = await axios.post(
+                `${API}/api/payment/create-order`,
+                { plan: planKey },
+                { headers }
+            );
+
+            // Step 3: Open Razorpay checkout
+            const options = {
+                key: data.keyId,
+                amount: data.amount,
+                currency: data.currency,
+                name: 'EnergyLens',
+                description: data.label,
+                order_id: data.orderId,
+                prefill: {
+                    name: data.userName,
+                    email: data.userEmail,
+                },
+                theme: { color: '#2563eb' },
+                handler: async (response: any) => {
+                    // Step 4: Verify payment on backend
+                    try {
+                        const verifyRes = await axios.post(
+                            `${API}/api/payment/verify`,
+                            {
+                                razorpay_order_id:   response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature:  response.razorpay_signature,
+                                plan: planKey,
+                            },
+                            { headers }
+                        );
+                        setSuccess(verifyRes.data.message);
+                        setTimeout(() => window.location.reload(), 2000);
+                    } catch {
+                        setSuccess('Payment received but verification failed. Contact support.');
+                    }
+                },
+                modal: {
+                    ondismiss: () => setIsLoading(null),
+                },
+            };
+
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
         } catch (err: any) {
-            // Fallback: demo mode
-            setSuccess(`Upgraded to ${plan} plan! (demo mode)`);
-            setTimeout(() => window.location.reload(), 1500);
+            console.error('Payment error:', err);
+            alert(err?.response?.data?.message || 'Payment failed. Please try again.');
         } finally {
             setIsLoading(null);
         }
