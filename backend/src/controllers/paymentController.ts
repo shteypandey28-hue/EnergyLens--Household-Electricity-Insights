@@ -30,7 +30,7 @@ export const createOrder = async (req: Request, res: Response) => {
         const order = await razorpay.orders.create({
             amount: config.amount,   // in paise
             currency: 'INR',
-            receipt: `receipt_${user._id}_${Date.now()}`,
+            receipt: `rcpt_${user._id.toString().slice(-8)}_${Date.now().toString().slice(-12)}`,
             notes: {
                 userId: user._id.toString(),
                 plan,
@@ -48,8 +48,17 @@ export const createOrder = async (req: Request, res: Response) => {
             userEmail: user.email,
         });
     } catch (error: any) {
-        console.error('Razorpay create order error:', error);
-        res.status(500).json({ message: 'Failed to create payment order', error: error.message });
+        console.error('Razorpay create order error:', JSON.stringify(error, null, 2));
+        console.error('Error message:', error?.message);
+        console.error('Error description:', error?.error?.description);
+        console.error('RAZORPAY_KEY_ID set:', !!process.env.RAZORPAY_KEY_ID, '| prefix:', process.env.RAZORPAY_KEY_ID?.substring(0, 12));
+        res.status(500).json({
+            message: 'Failed to create payment order',
+            error: error?.message || String(error),
+            razorpay_error: error?.error?.description || error?.error || null,
+            key_set: !!process.env.RAZORPAY_KEY_ID,
+            key_prefix: process.env.RAZORPAY_KEY_ID?.substring(0, 12),
+        });
     }
 };
 

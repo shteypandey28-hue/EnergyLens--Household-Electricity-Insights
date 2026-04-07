@@ -137,29 +137,31 @@ export const Dashboard: React.FC = () => {
     const isDark = theme === 'dark';
     const [timeRange, setTimeRange] = useState<TimeRange>('7d');
     const [readings, setReadings] = useState<Reading[]>([]);
+    const [appliances, setAppliances] = useState<any[]>([]);
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
-
-    const mockAppliances = [
-        { name: 'Air Conditioner', dailyKwh: 8.4 },
-        { name: 'Refrigerator', dailyKwh: 1.8 },
-        { name: 'Geyser', dailyKwh: 2.1 },
-        { name: 'Washing Machine', dailyKwh: 1.2 },
-    ];
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     const fetchDashboardData = useCallback(async () => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`);
-            setReadings(res.data);
+            const token = localStorage.getItem('token');
+            const headers = { Authorization: `Bearer ${token}` };
+            const [readingsRes, appliancesRes] = await Promise.all([
+                axios.get(`${API}/api/usage/readings`, { headers }),
+                axios.get(`${API}/api/usage/appliances`, { headers }),
+            ]);
+            setReadings(Array.isArray(readingsRes.data) ? readingsRes.data : []);
+            setAppliances(Array.isArray(appliancesRes.data) ? appliancesRes.data : []);
         } catch {
             setReadings([]);
+            setAppliances([]);
         }
-    }, []);
+    }, [API]);
 
     useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
     useEffect(() => {
-        if (readings.length === 0) { setChartData(generateMockData(timeRange)); return; }
+        if (readings.length === 0) { setChartData([]); return; }
         setChartData(processData(readings, timeRange));
     }, [readings, timeRange]);
 
@@ -184,14 +186,29 @@ export const Dashboard: React.FC = () => {
     const totalConsumption = readings.reduce((s, r) => s + r.unitsConsumed, 0);
     const carbonFootprint = (totalConsumption * 0.82).toFixed(1);
 
-    const displayUnits = currentMonthUnits || 187;
-    const displayCost = currentMonthCost || 1640;
-    const displayPrevCost = prevMonthCost || 1920;
+    const hasData = readings.length > 0;
+    const hasAppliances = appliances.length > 0;
+
+    const displayUnits = currentMonthUnits;
+    const displayCost = currentMonthCost;
+    const displayPrevCost = prevMonthCost;
     const monthlySavings = displayPrevCost - displayCost;
-    const savingsPct = displayPrevCost ? ((monthlySavings / displayPrevCost) * 100).toFixed(1) : 0;
+    const savingsPct = displayPrevCost > 0 ? ((monthlySavings / displayPrevCost) * 100).toFixed(1) : 0;
 
     const budget = user?.monthlyBudget || 2000;
-    const efficiencyScore = displayCost < budget * 0.7 ? 88 : displayCost < budget ? 72 : 55;
+    const efficiencyScore = !hasData ? 0 : displayCost < budget * 0.7 ? 88 : displayCost < budget ? 72 : 55;
+
+    // Top appliance by daily energy (wattage × hours)
+    const topAppliance = hasAppliances
+        ? appliances.reduce((best: any, a: any) => {
+            const energy = (a.wattage || 0) * (a.dailyUsageHours || 0);
+            const bestEnergy = (best.wattage || 0) * (best.dailyUsageHours || 0);
+            return energy > bestEnergy ? a : best;
+          })
+        : null;
+    const topApplianceDailyKwh = topAppliance
+        ? (((topAppliance.wattage || 0) * (topAppliance.dailyUsageHours || 0)) / 1000).toFixed(1)
+        : null;
 
     const getGreeting = () => {
         const h = new Date().getHours();
@@ -238,54 +255,54 @@ export const Dashboard: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                 <MiniCard
                     title="Monthly Consumption"
-                    value={displayUnits.toFixed(0)}
+                    value={hasData ? displayUnits.toFixed(0) : '0'}
                     unit="kWh"
                     icon={Zap}
                     color="blue"
-                    trend={{ value: 8, isPositive: false }}
+                    trend={hasData && displayPrevCost > 0 ? { value: 8, isPositive: false } : undefined}
                     delay={0.05}
                     isDark={isDark}
                 />
                 <MiniCard
                     title="Estimated Bill"
-                    value={formatINR(displayCost)}
+                    value={hasData ? formatINR(displayCost) : '₹0'}
                     icon={IndianRupee}
                     color="amber"
-                    trend={{ value: Number(savingsPct), isPositive: monthlySavings > 0 }}
+                    trend={hasData && displayPrevCost > 0 ? { value: Number(savingsPct), isPositive: monthlySavings > 0 } : undefined}
                     delay={0.1}
                     subtitle="This month"
                     isDark={isDark}
                 />
                 <MiniCard
                     title="vs Last Month"
-                    value={monthlySavings >= 0 ? `↓ ${formatINR(monthlySavings)}` : `↑ ${formatINR(Math.abs(monthlySavings))}`}
+                    value={!hasData || displayPrevCost === 0 ? '—' : monthlySavings >= 0 ? `↓ ${formatINR(monthlySavings)}` : `↑ ${formatINR(Math.abs(monthlySavings))}`}
                     icon={monthlySavings >= 0 ? TrendingDown : TrendingUp}
-                    color={monthlySavings >= 0 ? 'green' : 'red'}
+                    color={!hasData ? 'slate' : monthlySavings >= 0 ? 'green' : 'red'}
                     delay={0.15}
-                    subtitle={monthlySavings >= 0 ? 'You saved this month' : 'More than last month'}
+                    subtitle={!hasData || displayPrevCost === 0 ? 'No data yet' : monthlySavings >= 0 ? 'You saved this month' : 'More than last month'}
                     isDark={isDark}
                 />
                 <MiniCard
                     title="Top Appliance"
-                    value="AC"
+                    value={topAppliance ? topAppliance.name : '—'}
                     icon={Tv}
-                    color="purple"
+                    color={topAppliance ? 'purple' : 'slate'}
                     delay={0.2}
-                    subtitle="7.8 kWh/day"
+                    subtitle={topApplianceDailyKwh ? `${topApplianceDailyKwh} kWh/day` : 'No appliances yet'}
                     isDark={isDark}
                 />
                 <MiniCard
                     title="Peak Hour"
-                    value="6–9 PM"
+                    value={hasData ? '6–9 PM' : '—'}
                     icon={Clock}
-                    color="red"
+                    color={hasData ? 'red' : 'slate'}
                     delay={0.25}
-                    subtitle="Highest usage window"
+                    subtitle={hasData ? 'Highest usage window' : 'No data yet'}
                     isDark={isDark}
                 />
                 <MiniCard
                     title="Carbon Footprint"
-                    value={totalConsumption ? carbonFootprint : '15.3'}
+                    value={carbonFootprint}
                     unit="kg CO₂"
                     icon={Leaf}
                     color="green"
@@ -323,17 +340,25 @@ export const Dashboard: React.FC = () => {
                             ))}
                         </div>
                     </div>
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={timeRange}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.25 }}
-                        >
-                            <ConsumptionChart data={chartData} timeRange={timeRange} />
-                        </motion.div>
-                    </AnimatePresence>
+                    {!hasData ? (
+                        <div className={`flex flex-col items-center justify-center h-48 rounded-xl ${isDark ? 'bg-slate-800/40' : 'bg-slate-50'} border-2 border-dashed ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                            <Zap className={`h-8 w-8 ${isDark ? 'text-slate-600' : 'text-slate-300'} mb-2`} />
+                            <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No data yet</p>
+                            <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'} mt-1`}>Add your first reading in Usage &amp; Bills to see trends</p>
+                        </div>
+                    ) : (
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={timeRange}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.25 }}
+                            >
+                                <ConsumptionChart data={chartData} timeRange={timeRange} />
+                            </motion.div>
+                        </AnimatePresence>
+                    )}
                 </motion.div>
 
                 {/* Right column: Efficiency + Budget */}
@@ -389,7 +414,7 @@ export const Dashboard: React.FC = () => {
                         </p>
                     </motion.div>
 
-                    {/* Savings Opportunities */}
+                    {/* Savings Opportunities / Onboarding tip */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -398,16 +423,27 @@ export const Dashboard: React.FC = () => {
                     >
                         <div className="flex items-center gap-2 mb-3">
                             <Lightbulb className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                            <h3 className={`text-sm font-bold ${isDark ? 'text-emerald-100' : 'text-emerald-900'}`}>Savings Opportunity</h3>
+                            <h3 className={`text-sm font-bold ${isDark ? 'text-emerald-100' : 'text-emerald-900'}`}>
+                                {hasData ? 'Savings Opportunity' : 'Getting Started'}
+                            </h3>
                         </div>
-                        <p className={`text-xs ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
-                            Shift AC usage from 2–5 PM to 10 PM–8 AM. Save up to
-                            <span className="font-bold"> ₹220/month</span> with off-peak tariffs.
-                        </p>
-                        <div className="mt-3 flex items-center gap-1.5">
-                            <BarChart2 className="h-3.5 w-3.5 text-emerald-600" />
-                            <span className={`text-xs font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>Potential: ₹220/mo savings</span>
-                        </div>
+                        {hasData ? (
+                            <>
+                                <p className={`text-xs ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                                    Shift heavy loads to off-peak hours (10 PM–8 AM) to save with time-of-use tariffs.
+                                </p>
+                                <div className="mt-3 flex items-center gap-1.5">
+                                    <BarChart2 className="h-3.5 w-3.5 text-emerald-600" />
+                                    <span className={`text-xs font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>Potential savings with off-peak usage</span>
+                                </div>
+                            </>
+                        ) : (
+                            <ol className={`text-xs ${isDark ? 'text-emerald-300' : 'text-emerald-700'} space-y-1.5 list-decimal list-inside`}>
+                                <li>Go to <b>Appliances</b> and add your home appliances</li>
+                                <li>Go to <b>Usage &amp; Bills</b> and log your meter readings</li>
+                                <li>Come back here to see your energy insights!</li>
+                            </ol>
+                        )}
                     </motion.div>
                 </div>
             </div>
@@ -422,29 +458,41 @@ export const Dashboard: React.FC = () => {
                     className="premium-card rounded-3xl p-6 transition-all"
                 >
                     <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Top Energy Consumers</h3>
-                    <div className="space-y-3">
-                        {mockAppliances.map((a, i) => {
-                            const total = mockAppliances.reduce((s, x) => s + x.dailyKwh, 0);
-                            const pct = (a.dailyKwh / total) * 100;
-                            const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500'];
-                            return (
-                                <div key={a.name}>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'} font-medium`}>{a.name}</span>
-                                        <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{a.dailyKwh} kWh/day · {pct.toFixed(0)}%</span>
-                                    </div>
-                                    <div className={`h-2 ${isDark ? 'bg-slate-700' : 'bg-slate-100'} rounded-full overflow-hidden`}>
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${pct}%` }}
-                                            transition={{ duration: 0.8, delay: 0.6 + i * 0.1 }}
-                                            className={`h-full ${colors[i]} rounded-full`}
-                                        />
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    {!hasAppliances ? (
+                        <div className="text-center py-8">
+                            <Tv className={`h-8 w-8 ${isDark ? 'text-slate-600' : 'text-slate-300'} mx-auto mb-2`} />
+                            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No appliances added yet</p>
+                            <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'} mt-1`}>Go to Appliances to add your devices</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {appliances
+                                .map((a: any) => ({ ...a, dailyKwh: ((a.wattage || 0) * (a.dailyUsageHours || 0)) / 1000 }))
+                                .sort((a: any, b: any) => b.dailyKwh - a.dailyKwh)
+                                .slice(0, 5)
+                                .map((a: any, i: number) => {
+                                    const total = appliances.reduce((s: number, x: any) => s + ((x.wattage || 0) * (x.dailyUsageHours || 0)) / 1000, 0);
+                                    const pct = total > 0 ? (a.dailyKwh / total) * 100 : 0;
+                                    const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-rose-500'];
+                                    return (
+                                        <div key={a._id}>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'} font-medium`}>{a.name}</span>
+                                                <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{a.dailyKwh.toFixed(1)} kWh/day · {pct.toFixed(0)}%</span>
+                                            </div>
+                                            <div className={`h-2 ${isDark ? 'bg-slate-700' : 'bg-slate-100'} rounded-full overflow-hidden`}>
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${pct}%` }}
+                                                    transition={{ duration: 0.8, delay: 0.6 + i * 0.1 }}
+                                                    className={`h-full ${colors[i % colors.length]} rounded-full`}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    )}
                 </motion.div>
 
                 {/* Recent Activity */}
@@ -489,21 +537,23 @@ export const Dashboard: React.FC = () => {
                 </motion.div>
             </div>
 
-            {/* Alert Banner */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.65 }}
-                className="flex items-start gap-3 p-4 bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border border-amber-200 dark:border-amber-800/50 rounded-2xl"
-            >
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <div>
-                    <p className={`text-sm font-semibold ${isDark ? 'text-amber-100' : 'text-amber-900'}`}>Peak Hour Usage Detected</p>
-                    <p className={`text-xs ${isDark ? 'text-amber-300' : 'text-amber-700'} mt-0.5`}>
-                        High consumption between 6–9 PM. Shifting heavy loads to off-peak hours can save up to ₹180/month.
-                    </p>
-                </div>
-            </motion.div>
+            {/* Alert Banner: only show when user has real data */}
+            {hasData && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.65 }}
+                    className="flex items-start gap-3 p-4 bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border border-amber-200 dark:border-amber-800/50 rounded-2xl"
+                >
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className={`text-sm font-semibold ${isDark ? 'text-amber-100' : 'text-amber-900'}`}>Peak Hour Usage Pattern</p>
+                        <p className={`text-xs ${isDark ? 'text-amber-300' : 'text-amber-700'} mt-0.5`}>
+                            Based on your readings, shifting heavy loads to off-peak hours (10 PM–8 AM) can reduce your bill.
+                        </p>
+                    </div>
+                </motion.div>
+            )}
         </div>
     );
 };
