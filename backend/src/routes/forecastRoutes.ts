@@ -4,7 +4,11 @@ import { protect, requirePremium } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-// Forecast is a Premium-only feature
+/**
+ * @route  GET /api/forecast
+ * @desc   Get AI-powered consumption forecast for the authenticated user
+ * @access Private – Premium plan required
+ */
 router.get('/', protect, requirePremium, getForecast);
 
 export default router;

@@ -11,10 +11,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+// ─── CORS ────────────────────────────────────────────────────
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://energy-lens-snowy.vercel.app',
+    process.env.FRONTEND_URL || '',
+].filter(Boolean);
+
 app.use(cors({
-    origin: '*',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (e.g. mobile apps, curl)
+        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+        callback(null, true); // permissive – tighten in production if needed
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -76,8 +88,19 @@ mongoose
         console.error('❌ MongoDB connection error code:', err?.code);
     });
 
-app.listen(PORT, () => {
-    console.log(`🚀 EnergyLens Server running on http://localhost:${PORT}`);
+const server = app.listen(PORT, () => {
+    console.log(`🚀 EnergyLens API v2.0 running on http://localhost:${PORT}`);
+    console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// ─── Graceful Shutdown ───────────────────────────────────────
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received – shutting down gracefully');
+    server.close(() => {
+        mongoose.connection.close();
+        console.log('Server and DB connections closed.');
+        process.exit(0);
+    });
 });
 
 export default app;

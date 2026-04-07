@@ -4,8 +4,25 @@ import { protect } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-router.post('/create-order', protect, createOrder);  // Step 1: get Razorpay order
-router.post('/verify',       protect, verifyPayment); // Step 2: verify & upgrade
-router.post('/subscribe',    protect, subscribe);      // Legacy demo
+/**
+ * @route  POST /api/payment/create-order
+ * @desc   Create a Razorpay order for the selected plan
+ * @access Private
+ */
+router.post('/create-order', protect, createOrder);
+
+/**
+ * @route  POST /api/payment/verify
+ * @desc   Verify Razorpay signature and upgrade user plan
+ * @access Private
+ */
+router.post('/verify', protect, verifyPayment);
+
+/**
+ * @route  POST /api/payment/subscribe
+ * @desc   Legacy subscribe endpoint (demo/admin use only)
+ * @access Private
+ */
+router.post('/subscribe', protect, subscribe);
 
 export default router;
