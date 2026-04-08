@@ -28,6 +28,7 @@ export interface IUser extends mongoose.Document {
     };
     subscriptionExpires?: Date;
     autoRenew: boolean;
+    extraApplianceSlots: number;
     createdAt: Date;
 }
 
@@ -59,6 +60,7 @@ const UserSchema = new mongoose.Schema({
     },
     subscriptionExpires: { type: Date },
     autoRenew: { type: Boolean, default: true },
+    extraApplianceSlots: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
 });
 

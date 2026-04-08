@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, verifyPayment, subscribe } from '../controllers/paymentController';
+import { createOrder, verifyPayment, subscribe, createAddonOrder, verifyAddonPayment } from '../controllers/paymentController';
 import { protect } from '../middleware/authMiddleware';
 
 const router = express.Router();
@@ -24,5 +24,19 @@ router.post('/verify', protect, verifyPayment);
  * @access Private
  */
 router.post('/subscribe', protect, subscribe);
+
+/**
+ * @route  POST /api/payment/addon/create-order
+ * @desc   Create a Razorpay order for extra appliance slots (₹9/slot, Premium only)
+ * @access Private
+ */
+router.post('/addon/create-order', protect, createAddonOrder);
+
+/**
+ * @route  POST /api/payment/addon/verify
+ * @desc   Verify addon payment and increment user's extraApplianceSlots
+ * @access Private
+ */
+router.post('/addon/verify', protect, verifyAddonPayment);
 
 export default router;

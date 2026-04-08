@@ -28,27 +28,39 @@ export const addAppliance = async (req: Request, res: Response) => {
 
     try {
         // ── Plan-based appliance caps ─────────────────────────────────
-        const PLAN_LIMITS: Record<string, number> = {
+        const BASE_LIMITS: Record<string, number> = {
             free: 3,
             basic: 15,
             premium: 30,
         };
-        const limit = PLAN_LIMITS[user.role];
-        if (limit !== undefined) {
+        const baseLimit = BASE_LIMITS[user.role];
+        if (baseLimit !== undefined) {
+            // Premium users get extra slots they purchased as add-ons
+            const extraSlots = user.role === 'premium' ? (user.extraApplianceSlots || 0) : 0;
+            const effectiveLimit = baseLimit + extraSlots;
             const count = await Appliance.countDocuments({ user: user._id });
-            if (count >= limit) {
-                const isBasic = user.role === 'basic';
+
+            if (count >= effectiveLimit) {
                 const isPremium = user.role === 'premium';
                 const nextPlan = user.role === 'free' ? 'basic' : 'premium';
+
+                if (isPremium) {
+                    // Premium users can buy add-on slots instead of upgrading
+                    return res.status(403).json({
+                        success: false,
+                        message: `You have used all ${effectiveLimit} appliance slots. Purchase an add-on to add more (₹9 per appliance).`,
+                        requiresAddon: true,
+                        currentLimit: effectiveLimit,
+                    });
+                }
+
                 const message = user.role === 'free'
-                    ? `Free plan allows a maximum of ${limit} appliances. Upgrade to Basic for up to 15 appliances.`
-                    : isBasic
-                    ? `Basic plan allows a maximum of ${limit} appliances. Upgrade to Premium for up to 30 appliances.`
-                    : `Premium plan allows a maximum of ${limit} appliances.`;
+                    ? `Free plan allows a maximum of ${baseLimit} appliances. Upgrade to Basic for up to 15 appliances.`
+                    : `Basic plan allows a maximum of ${baseLimit} appliances. Upgrade to Premium for up to 30 appliances.`;
                 return res.status(403).json({
                     success: false,
                     message,
-                    requiresUpgrade: !isPremium,
+                    requiresUpgrade: true,
                     requiredPlan: nextPlan,
                 });
             }
