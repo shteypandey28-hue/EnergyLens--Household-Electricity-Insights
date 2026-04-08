@@ -30,7 +30,7 @@ const features: PlanFeature[] = [
     { label: 'Manual reading entry', free: true, basic: true, premium: true },
     { label: 'Basic dashboard', free: true, basic: true, premium: true },
     { label: 'CSV data upload', free: true, basic: true, premium: true },
-    { label: 'Appliance tracking', free: '3 appliances', basic: '10 appliances', premium: 'Unlimited' },
+    { label: 'Appliance tracking', free: '3 appliances', basic: '15 appliances', premium: '30 appliances' },
     { label: 'Consumption charts', free: '7 days', basic: '6 months', premium: '5 years' },
     { label: 'Advanced analytics', free: false, basic: true, premium: true },
     { label: 'AI-powered forecasting', free: false, basic: false, premium: true },
@@ -55,6 +55,7 @@ export const Upgrade: React.FC = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState<string | null>(null);
     const [success, setSuccess] = useState('');
+    const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState<'cards' | 'table'>('cards');
 
     const handleUpgrade = async (plan: 'basic' | 'pro') => {
@@ -105,10 +106,12 @@ export const Upgrade: React.FC = () => {
                             },
                             { headers }
                         );
+                        setError('');
                         setSuccess(verifyRes.data.message);
                         setTimeout(() => window.location.reload(), 2000);
-                    } catch {
-                        setSuccess('Payment received but verification failed. Contact support.');
+                    } catch (verifyErr: any) {
+                        const msg = verifyErr?.response?.data?.message || 'Payment verification failed. Please contact support.';
+                        setError(msg);
                     }
                 },
                 modal: {
@@ -198,6 +201,11 @@ export const Upgrade: React.FC = () => {
             {success && (
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-300 text-sm font-semibold text-center">
                     ✅ {success}
+                </motion.div>
+            )}
+            {error && (
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-300 text-sm font-semibold text-center">
+                    ❌ {error}
                 </motion.div>
             )}
 

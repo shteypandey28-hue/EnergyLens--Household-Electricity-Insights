@@ -95,8 +95,10 @@ export const verifyPayment = async (req: Request, res: Response) => {
             plan: config.role,
             amount: config.amount / 100, // back to ₹
             status: 'success',
-            paymentMethod: 'razorpay',
+            paymentMethod: 'card',
             transactionId: razorpay_payment_id,
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id,
             subscriptionDuration: 30,
             notes: `Razorpay order ${razorpay_order_id}`,
         });

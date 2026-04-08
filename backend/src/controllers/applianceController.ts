@@ -27,15 +27,29 @@ export const addAppliance = async (req: Request, res: Response) => {
     } = req.body;
 
     try {
-        // ── Free plan cap: max 3 appliances ──────────────────────────
-        if (user.role === 'free') {
+        // ── Plan-based appliance caps ─────────────────────────────────
+        const PLAN_LIMITS: Record<string, number> = {
+            free: 3,
+            basic: 15,
+            premium: 30,
+        };
+        const limit = PLAN_LIMITS[user.role];
+        if (limit !== undefined) {
             const count = await Appliance.countDocuments({ user: user._id });
-            if (count >= 3) {
+            if (count >= limit) {
+                const isBasic = user.role === 'basic';
+                const isPremium = user.role === 'premium';
+                const nextPlan = user.role === 'free' ? 'basic' : 'premium';
+                const message = user.role === 'free'
+                    ? `Free plan allows a maximum of ${limit} appliances. Upgrade to Basic for up to 15 appliances.`
+                    : isBasic
+                    ? `Basic plan allows a maximum of ${limit} appliances. Upgrade to Premium for up to 30 appliances.`
+                    : `Premium plan allows a maximum of ${limit} appliances.`;
                 return res.status(403).json({
                     success: false,
-                    message: 'Free plan allows a maximum of 3 appliances. Upgrade to Basic for unlimited appliances.',
-                    requiresUpgrade: true,
-                    requiredPlan: 'basic',
+                    message,
+                    requiresUpgrade: !isPremium,
+                    requiredPlan: nextPlan,
                 });
             }
         }

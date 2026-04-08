@@ -293,17 +293,29 @@ export const Appliances: React.FC = () => {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {/* Free plan limit badge */}
-                    {plan === 'free' && (
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                            appliances.length >= 3
-                                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
-                                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
-                        }`}>
-                            {appliances.length}/3 appliances
-                        </span>
-                    )}
-                    <Button onClick={() => setIsModalOpen(true)} disabled={plan === 'free' && appliances.length >= 3}>
+                    {/* Plan limit badge */}
+                    {(() => {
+                        const limits: Record<string, number> = { free: 3, basic: 15, premium: 30 };
+                        const cap = limits[plan];
+                        if (cap === undefined) return null;
+                        const atOrNearLimit = appliances.length >= cap - 2;
+                        return (
+                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                                appliances.length >= cap
+                                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
+                                    : atOrNearLimit
+                                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400'
+                                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                            }`}>
+                                {appliances.length}/{cap} appliances
+                            </span>
+                        );
+                    })()}
+                    <Button onClick={() => setIsModalOpen(true)} disabled={(() => {
+                        const limits: Record<string, number> = { free: 3, basic: 15, premium: 30 };
+                        const cap = limits[plan];
+                        return cap !== undefined && appliances.length >= cap;
+                    })()}>
                         <Plus className="h-4 w-4 mr-2" /> Add Appliance
                     </Button>
                 </div>
