@@ -1,12 +1,72 @@
 import { Request, Response } from 'express';
 import Alert from '../models/Alert';
+import Appliance from '../models/Appliance';
+import MeterReading from '../models/MeterReading';
 
 export const getAlerts = async (req: Request, res: Response) => {
     // @ts-ignore
-    const userId = req.user?._id;
+    const user = req.user;
+    const userId = user._id;
     const { unreadOnly, type, severity, limit = 20 } = req.query;
 
     try {
+        // ── Auto-generate data-driven alerts ──────────────────────────────
+        const today = new Date();
+        const startOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        
+        // 1. Budget Alert Check
+        const readingsThisMonth = await MeterReading.find({
+            user: userId,
+            date: { $gte: startOfThisMonth }
+        });
+        const currentSpends = readingsThisMonth.reduce((acc, r) => acc + (r.cost || 0), 0);
+        const budget = user.monthlyBudget || 3000;
+        
+        if (currentSpends > budget * 0.8) {
+            // Check if we already alerted this month about budget
+            const existingBudgetAlert = await Alert.findOne({
+                user: userId,
+                type: 'budget_exceeded',
+                createdAt: { $gte: startOfThisMonth }
+            });
+            
+            if (!existingBudgetAlert) {
+                await Alert.create({
+                    user: userId,
+                    type: 'budget_exceeded',
+                    severity: currentSpends > budget ? 'critical' : 'high',
+                    title: currentSpends > budget ? 'Budget Exceeded!' : 'Approaching Monthly Budget',
+                    message: `You have spent ₹${currentSpends.toFixed(0)} which is ${(currentSpends / budget * 100).toFixed(0)}% of your ₹${budget} budget.`,
+                });
+            }
+        }
+
+        // 2. Heavy Appliance Anomaly Check
+        const appliances = await Appliance.find({ user: userId });
+        const heavyHitters = appliances.filter(a => ((a.wattage || 0) * (a.dailyUsageHours || 0)) > 10000); // > 10 kWh/day
+        
+        for (const appliance of heavyHitters) {
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - 7);
+            
+            const existingHeavyAlert = await Alert.findOne({
+                user: userId,
+                type: 'appliance_anomaly',
+                createdAt: { $gte: startOfWeek } // max 1 alert per week
+            });
+            
+            if (!existingHeavyAlert) {
+                await Alert.create({
+                    user: userId,
+                    type: 'appliance_anomaly',
+                    severity: 'medium',
+                    title: 'High Consumption Appliance Detected',
+                    message: `Your ${appliance.name} is consuming over ${((appliance.wattage || 0) * (appliance.dailyUsageHours || 0) / 1000).toFixed(1)} kWh daily. Ensure it is serviced regularly to maintain efficiency.`,
+                });
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         const query: any = { user: userId };
         if (unreadOnly === 'true') query.isRead = false;
         if (type) query.type = type;
@@ -59,7 +119,7 @@ export const deleteAlert = async (req: Request, res: Response) => {
     }
 };
 
-// Generate sample alerts for demo
+// Generate sample alerts for demo (kept for legacy reasons)
 export const generateSampleAlerts = async (req: Request, res: Response) => {
     // @ts-ignore
     const userId = req.user?._id;
@@ -114,3 +174,4 @@ export const generateSampleAlerts = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Failed to generate sample alerts' });
     }
 };
+
