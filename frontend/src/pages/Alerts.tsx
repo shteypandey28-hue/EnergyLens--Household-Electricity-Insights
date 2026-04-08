@@ -31,28 +31,25 @@ const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
     forecast_warning: TrendingUp,
 };
 
-// Demo alerts for when backend is unavailable
-const demoAlerts: Alert[] = [
-    { _id: '1', type: 'budget_exceeded', severity: 'high', title: 'Monthly Budget Alert', message: 'You have used 89% of your ₹2,000 monthly energy budget. At current pace, bill may exceed by ₹340.', isRead: false, createdAt: new Date().toISOString() },
-    { _id: '2', type: 'bill_spike', severity: 'critical', title: 'Unusual Bill Spike Detected', message: 'Your energy consumption this week is 42% higher than last week. Check if any appliance is running continuously.', isRead: false, createdAt: new Date(Date.now() - 3600000).toISOString() },
-    { _id: '3', type: 'peak_hour_overuse', severity: 'medium', title: 'Peak Hour Usage Warning', message: 'High usage detected between 6 PM - 10 PM. Consider shifting heavy appliances to off-peak hours to save ₹180/month.', isRead: false, createdAt: new Date(Date.now() - 7200000).toISOString() },
-    { _id: '4', type: 'appliance_anomaly', severity: 'medium', title: 'AC Anomaly Detected', message: 'Your AC is consuming 23% more power than usual. This could indicate a gas leak or dirty filter.', isRead: true, createdAt: new Date(Date.now() - 86400000).toISOString() },
-    { _id: '5', type: 'usage_milestone', severity: 'low', title: 'Great Job This Month!', message: 'You saved ₹485 compared to last month. Your energy efficiency score improved to 78/100.', isRead: true, createdAt: new Date(Date.now() - 172800000).toISOString() },
-    { _id: '6', type: 'forecast_warning', severity: 'high', title: 'Bill Forecast: ₹2,340', message: 'Based on current usage patterns, your bill this month is projected to exceed budget by ₹340.', isRead: false, createdAt: new Date(Date.now() - 259200000).toISOString() },
-];
-
 export const Alerts: React.FC = () => {
-    const [alerts, setAlerts] = useState<Alert[]>(demoAlerts);
+    const [alerts, setAlerts] = useState<Alert[]>([]);
     const [filter, setFilter] = useState<'all' | 'unread' | 'high' | 'critical'>('all');
     const [isLoading, setIsLoading] = useState(false);
+
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+    const getHeaders = () => {
+        const token = localStorage.getItem('token');
+        return { headers: { Authorization: `Bearer ${token}` } };
+    };
 
     const fetchAlerts = async () => {
         setIsLoading(true);
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/alerts`);
-            if (res.data.alerts?.length > 0) setAlerts(res.data.alerts);
+            const res = await axios.get(`${API}/api/alerts`, getHeaders());
+            setAlerts(res.data.alerts || []);
         } catch {
-            // use demo alerts
+            setAlerts([]);
         } finally {
             setIsLoading(false);
         }
@@ -62,21 +59,21 @@ export const Alerts: React.FC = () => {
 
     const markRead = async (id: string) => {
         try {
-            await axios.put(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/alerts/${id}/read`);
+            await axios.put(`${API}/api/alerts/${id}/read`, {}, getHeaders());
         } catch { }
         setAlerts(prev => prev.map(a => a._id === id ? { ...a, isRead: true } : a));
     };
 
     const markAllRead = async () => {
         try {
-            await axios.put(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/alerts/mark-all-read`);
+            await axios.put(`${API}/api/alerts/mark-all-read`, {}, getHeaders());
         } catch { }
         setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
     };
 
     const deleteAlert = async (id: string) => {
         try {
-            await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/alerts/${id}`);
+            await axios.delete(`${API}/api/alerts/${id}`, getHeaders());
         } catch { }
         setAlerts(prev => prev.filter(a => a._id !== id));
     };
