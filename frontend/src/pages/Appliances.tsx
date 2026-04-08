@@ -9,6 +9,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, differenceInDays, isPast } from 'date-fns';
 import { usePlan } from '../hooks/usePlan';
+import { useAuth } from '../context/AuthContext';
 import { UpgradePromptModal } from '../components/UpgradePromptModal';
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -185,6 +186,7 @@ const AlertBanner: React.FC<{
 // ─── Main Page ─────────────────────────────────────────────────────
 export const Appliances: React.FC = () => {
     const { canDo, plan } = usePlan();
+    const { user } = useAuth();
     const [appliances, setAppliances] = useState<Appliance[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -215,7 +217,10 @@ export const Appliances: React.FC = () => {
 
     const fetchAppliances = async () => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances`);
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
             setAppliances(res.data);
         } catch (e) { console.error('Fetch appliances', e); }
     };
@@ -224,6 +229,7 @@ export const Appliances: React.FC = () => {
         e.preventDefault();
         setIsLoading(true);
         try {
+            const token = localStorage.getItem('token');
             await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances`, {
                 name,
                 type,
@@ -233,6 +239,8 @@ export const Appliances: React.FC = () => {
                 purchaseDate: purchaseDate || undefined,
                 warrantyExpiry: warrantyExpiry || undefined,
                 quantity: 1,
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
             });
             await fetchAppliances();
             setIsModalOpen(false);
@@ -331,17 +339,23 @@ export const Appliances: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!confirm('Remove this appliance?')) return;
         try {
-            await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances/${id}`);
+            const token = localStorage.getItem('token');
+            await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
             setAppliances(prev => prev.filter(a => a._id !== id));
         } catch (e) { console.error('Delete appliance', e); }
     };
 
     const handleServiceSave = async (id: string, date: string, notes: string) => {
         try {
+            const token = localStorage.getItem('token');
             // PATCH to update lastServiceDate and serviceNotes
             const res = await axios.patch(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances/${id}/service`, {
                 lastServiceDate: date,
                 serviceNotes: notes,
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
             });
             setAppliances(prev => prev.map(a => a._id === id ? { ...a, ...res.data } : a));
         } catch {
@@ -379,26 +393,45 @@ export const Appliances: React.FC = () => {
                     {/* Plan limit badge */}
                     {(() => {
                         const limits: Record<string, number> = { free: 3, basic: 15, premium: 30 };
-                        const cap = limits[plan];
-                        if (cap === undefined) return null;
-                        const atOrNearLimit = appliances.length >= cap - 2;
+                        const baseCap = limits[plan];
+                        if (baseCap === undefined) return null;
+                        const extra = plan === 'premium' ? (user?.extraApplianceSlots || 0) : 0;
+                        const effectiveCap = baseCap + extra;
+                        const atOrNearLimit = appliances.length >= effectiveCap - 2;
                         return (
                             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                                appliances.length >= cap
+                                appliances.length >= effectiveCap
                                     ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
                                     : atOrNearLimit
                                     ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400'
                                     : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
                             }`}>
-                                {appliances.length}/{cap} appliances
+                                {appliances.length}/{effectiveCap} appliances
                             </span>
                         );
                     })()}
-                    <Button onClick={() => setIsModalOpen(true)} disabled={(() => {
-                        const limits: Record<string, number> = { free: 3, basic: 15, premium: 30 };
-                        const cap = limits[plan];
-                        return cap !== undefined && appliances.length >= cap;
-                    })()}>
+                    <Button 
+                        onClick={() => {
+                            const limits: Record<string, number> = { free: 3, basic: 15, premium: 30 };
+                            const baseCap = limits[plan] || 3;
+                            const extra = plan === 'premium' ? (user?.extraApplianceSlots || 0) : 0;
+                            const effectiveCap = baseCap + extra;
+                            
+                            if (appliances.length >= effectiveCap) {
+                                if (plan === 'premium') {
+                                    setAddonModal(true);
+                                } else {
+                                    setUpgradeModal({
+                                        open: true,
+                                        requiredPlan: plan === 'free' ? 'basic' : 'premium',
+                                        message: `Your current plan allows up to ${effectiveCap} appliances. Upgrade to add more.`
+                                    });
+                                }
+                            } else {
+                                setIsModalOpen(true);
+                            }
+                        }}
+                    >
                         <Plus className="h-4 w-4 mr-2" /> Add Appliance
                     </Button>
                 </div>

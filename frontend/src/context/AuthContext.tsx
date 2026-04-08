@@ -21,6 +21,7 @@ export interface User {
         peakHourAlert: boolean;
         anomalyAlert: boolean;
     };
+    extraApplianceSlots?: number;
 }
 
 interface AuthContextType {

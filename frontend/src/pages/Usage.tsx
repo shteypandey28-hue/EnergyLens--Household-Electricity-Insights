@@ -25,7 +25,10 @@ export const Usage: React.FC = () => {
 
     const fetchReadings = async () => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`);
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
             setReadings(res.data);
         } catch (error) {
             console.error("Error fetching readings", error);
@@ -38,10 +41,13 @@ export const Usage: React.FC = () => {
         setMessage({ type: '', text: '' });
 
         try {
+            const token = localStorage.getItem('token');
             await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`, {
                 date,
                 unitsConsumed: Number(units),
                 source: 'manual'
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
             });
             setMessage({ type: 'success', text: 'Reading added successfully!' });
             setUnits('');
