@@ -23,7 +23,7 @@ export const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({
 
     const defaultMessage = isPremium
         ? 'Upgrade to Premium to access AI-powered forecasting, anomaly detection, and export reports.'
-        : 'Upgrade to Basic to unlock unlimited appliances, detailed analysis, and historical tracking.';
+        : 'Upgrade to Basic to unlock up to 15 appliances, detailed analysis, and historical tracking.';
 
     const IconComponent = isPremium ? Crown : Zap;
     const iconBg = isPremium

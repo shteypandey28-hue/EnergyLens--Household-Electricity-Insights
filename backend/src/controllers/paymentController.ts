@@ -95,8 +95,10 @@ export const verifyPayment = async (req: Request, res: Response) => {
             plan: config.role,
             amount: config.amount / 100, // back to ₹
             status: 'success',
-            paymentMethod: 'razorpay',
+            paymentMethod: 'card',
             transactionId: razorpay_payment_id,
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id,
             subscriptionDuration: 30,
             notes: `Razorpay order ${razorpay_order_id}`,
         });
@@ -131,5 +133,108 @@ export const subscribe = async (req: Request, res: Response) => {
         res.json({ message: `Upgraded to ${config.label} successfully!`, user });
     } catch (error) {
         res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// ── POST /api/payment/addon/create-order ─────────────────────
+// Creates a Razorpay order for purchasing extra appliance slots (₹9 per slot)
+export const createAddonOrder = async (req: Request, res: Response) => {
+    // @ts-ignore
+    const user = req.user;
+    const { quantity } = req.body; // number of extra slots to buy
+
+    if (!quantity || typeof quantity !== 'number' || quantity < 1 || quantity > 100) {
+        return res.status(400).json({ message: 'Quantity must be between 1 and 100.' });
+    }
+
+    if (user.role !== 'premium' && user.role !== 'admin') {
+        return res.status(403).json({ message: 'Appliance add-ons are only available for Premium users.' });
+    }
+
+    const PRICE_PER_SLOT = 900; // ₹9 in paise
+    const totalAmount = PRICE_PER_SLOT * quantity;
+
+    try {
+        const order = await razorpay.orders.create({
+            amount: totalAmount,
+            currency: 'INR',
+            receipt: `addon_${user._id.toString().slice(-8)}_${Date.now().toString().slice(-8)}`,
+            notes: {
+                userId: user._id.toString(),
+                type: 'appliance_addon',
+                quantity: quantity.toString(),
+            },
+        });
+
+        res.json({
+            orderId: order.id,
+            amount: totalAmount,
+            currency: 'INR',
+            quantity,
+            pricePerSlot: 9,
+            label: `${quantity} Extra Appliance Slot${quantity > 1 ? 's' : ''}`,
+            keyId: process.env.RAZORPAY_KEY_ID,
+            userName: user.name,
+            userEmail: user.email,
+        });
+    } catch (error: any) {
+        console.error('Addon order create error:', error);
+        res.status(500).json({ message: 'Failed to create addon order', error: error?.message });
+    }
+};
+
+// ── POST /api/payment/addon/verify ───────────────────────────
+// Verifies signature and increments user's extraApplianceSlots
+export const verifyAddonPayment = async (req: Request, res: Response) => {
+    // @ts-ignore
+    const userId = req.user?._id;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, quantity } = req.body;
+
+    if (!quantity || typeof quantity !== 'number' || quantity < 1) {
+        return res.status(400).json({ message: 'Invalid quantity.' });
+    }
+
+    try {
+        // 1. Verify Razorpay signature
+        const expectedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+            .digest('hex');
+
+        if (expectedSignature !== razorpay_signature) {
+            return res.status(400).json({ message: 'Addon payment verification failed. Invalid signature.' });
+        }
+
+        const PRICE_PER_SLOT = 9; // ₹9
+        const totalAmount = PRICE_PER_SLOT * quantity;
+
+        // 2. Record transaction
+        await Transaction.create({
+            user: userId,
+            plan: 'premium',
+            amount: totalAmount,
+            status: 'success',
+            paymentMethod: 'card',
+            transactionId: razorpay_payment_id,
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id,
+            subscriptionDuration: 0,
+            notes: `Appliance add-on: ${quantity} slot${quantity > 1 ? 's' : ''} @ ₹9 each`,
+        });
+
+        // 3. Increment extra slots on user
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { extraApplianceSlots: quantity } },
+            { new: true }
+        );
+
+        res.json({
+            message: `Successfully added ${quantity} appliance slot${quantity > 1 ? 's' : ''}! You can now add up to ${30 + (updatedUser?.extraApplianceSlots || 0)} appliances.`,
+            extraApplianceSlots: updatedUser?.extraApplianceSlots,
+        });
+    } catch (error: any) {
+        console.error('Addon verify error:', error);
+        res.status(500).json({ message: 'Addon payment verification failed', error: error.message });
     }
 };
