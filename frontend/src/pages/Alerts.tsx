@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Bell, CheckCheck, Trash2, Filter, AlertTriangle, TrendingUp, Zap, Clock, IndianRupee, Info } from 'lucide-react';
 import axios from 'axios';
 import { format } from 'date-fns';
+import { getCachedData, setCachedData } from '../utils/cache';
 
 interface Alert {
     _id: string;
@@ -44,12 +45,21 @@ export const Alerts: React.FC = () => {
     };
 
     const fetchAlerts = async () => {
-        setIsLoading(true);
+        const cached = getCachedData('alerts');
+        if (cached) {
+            setAlerts(cached);
+            setIsLoading(false);
+        } else {
+            setIsLoading(true);
+        }
+
         try {
             const res = await axios.get(`${API}/api/alerts`, getHeaders());
-            setAlerts(res.data.alerts || []);
+            const alertsData = res.data.alerts || [];
+            setAlerts(alertsData);
+            setCachedData('alerts', alertsData);
         } catch {
-            setAlerts([]);
+            if (!cached) setAlerts([]);
         } finally {
             setIsLoading(false);
         }
