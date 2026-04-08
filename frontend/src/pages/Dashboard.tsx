@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { format, subDays, subMonths, subYears, startOfMonth, endOfMonth } from 'date-fns';
+import { getCachedData, setCachedData } from '../utils/cache';
 
 type TimeRange = '7d' | '1m' | '3m' | '6m' | '1y' | '5y';
 
@@ -144,6 +145,16 @@ export const Dashboard: React.FC = () => {
     const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     const fetchDashboardData = useCallback(async () => {
+        const cachedR = getCachedData('readings');
+        const cachedA = getCachedData('appliances');
+        if (cachedR && cachedA) {
+            setReadings(cachedR);
+            setAppliances(cachedA);
+            setIsInitialLoading(false);
+        } else {
+            setIsInitialLoading(true);
+        }
+
         try {
             const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
@@ -151,11 +162,17 @@ export const Dashboard: React.FC = () => {
                 axios.get(`${API}/api/usage/readings`, { headers }),
                 axios.get(`${API}/api/usage/appliances`, { headers }),
             ]);
-            setReadings(Array.isArray(readingsRes.data) ? readingsRes.data : []);
-            setAppliances(Array.isArray(appliancesRes.data) ? appliancesRes.data : []);
+            
+            const rData = Array.isArray(readingsRes.data) ? readingsRes.data : [];
+            const aData = Array.isArray(appliancesRes.data) ? appliancesRes.data : [];
+            
+            setReadings(rData);
+            setAppliances(aData);
+            setCachedData('readings', rData);
+            setCachedData('appliances', aData);
         } catch {
-            setReadings([]);
-            setAppliances([]);
+            if (!cachedR) setReadings([]);
+            if (!cachedA) setAppliances([]);
         } finally {
             setIsInitialLoading(false);
         }

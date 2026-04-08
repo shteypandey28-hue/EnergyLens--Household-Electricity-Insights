@@ -11,6 +11,7 @@ import { format, differenceInDays, isPast } from 'date-fns';
 import { usePlan } from '../hooks/usePlan';
 import { useAuth } from '../context/AuthContext';
 import { UpgradePromptModal } from '../components/UpgradePromptModal';
+import { getCachedData, setCachedData } from '../utils/cache';
 
 // ─── Types ────────────────────────────────────────────────────────
 interface Appliance {
@@ -217,13 +218,21 @@ export const Appliances: React.FC = () => {
     useEffect(() => { fetchAppliances(); }, []);
 
     const fetchAppliances = async () => {
-        setIsInitialLoading(true);
+        const cached = getCachedData('appliances');
+        if (cached) {
+            setAppliances(cached);
+            setIsInitialLoading(false);
+        } else {
+            setIsInitialLoading(true);
+        }
+
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setAppliances(res.data);
+            setCachedData('appliances', res.data);
         } catch (e) {
             console.error('Fetch appliances', e);
         } finally {
@@ -248,7 +257,7 @@ export const Appliances: React.FC = () => {
             }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            await fetchAppliances();
+            await fetchAppliances(); // this sets the new cache
             setIsModalOpen(false);
             resetForm();
         } catch (e: any) {
@@ -349,7 +358,9 @@ export const Appliances: React.FC = () => {
             await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setAppliances(prev => prev.filter(a => a._id !== id));
+            const updated = appliances.filter(a => a._id !== id);
+            setAppliances(updated);
+            setCachedData('appliances', updated);
         } catch (e) { console.error('Delete appliance', e); }
     };
 

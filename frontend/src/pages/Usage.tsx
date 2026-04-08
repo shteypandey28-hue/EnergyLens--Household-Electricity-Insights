@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { Zap, AlertCircle, History } from 'lucide-react';
 import axios from 'axios';
 import { format } from 'date-fns';
+import { getCachedData, setCachedData } from '../utils/cache';
 
 interface Reading {
     _id: string;
@@ -25,13 +26,21 @@ export const Usage: React.FC = () => {
     }, []);
 
     const fetchReadings = async () => {
-        setIsInitialLoading(true);
+        const cached = getCachedData('readings');
+        if (cached) {
+            setReadings(cached);
+            setIsInitialLoading(false);
+        } else {
+            setIsInitialLoading(true);
+        }
+
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setReadings(res.data);
+            setCachedData('readings', res.data);
         } catch (error) {
             console.error("Error fetching readings", error);
         } finally {
