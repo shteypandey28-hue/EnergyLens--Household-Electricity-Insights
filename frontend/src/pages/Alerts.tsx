@@ -34,7 +34,7 @@ const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
 export const Alerts: React.FC = () => {
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [filter, setFilter] = useState<'all' | 'unread' | 'high' | 'critical'>('all');
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -86,6 +86,14 @@ export const Alerts: React.FC = () => {
     });
 
     const unreadCount = alerts.filter(a => !a.isRead).length;
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">

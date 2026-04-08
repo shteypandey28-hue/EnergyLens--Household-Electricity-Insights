@@ -16,6 +16,7 @@ export const Usage: React.FC = () => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [units, setUnits] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [readings, setReadings] = useState<Reading[]>([]);
 
@@ -24,6 +25,7 @@ export const Usage: React.FC = () => {
     }, []);
 
     const fetchReadings = async () => {
+        setIsInitialLoading(true);
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/readings`, {
@@ -32,6 +34,8 @@ export const Usage: React.FC = () => {
             setReadings(res.data);
         } catch (error) {
             console.error("Error fetching readings", error);
+        } finally {
+            setIsInitialLoading(false);
         }
     };
 
@@ -61,6 +65,14 @@ export const Usage: React.FC = () => {
             setIsLoading(false);
         }
     };
+
+    if (isInitialLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto">
