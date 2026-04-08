@@ -140,6 +140,7 @@ export const Dashboard: React.FC = () => {
     const [appliances, setAppliances] = useState<any[]>([]);
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     const fetchDashboardData = useCallback(async () => {
@@ -155,6 +156,8 @@ export const Dashboard: React.FC = () => {
         } catch {
             setReadings([]);
             setAppliances([]);
+        } finally {
+            setIsInitialLoading(false);
         }
     }, [API]);
 
@@ -216,6 +219,14 @@ export const Dashboard: React.FC = () => {
         if (h < 18) return 'Good Afternoon';
         return 'Good Evening';
     };
+
+    if (isInitialLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto relative z-10">

@@ -190,6 +190,7 @@ export const Appliances: React.FC = () => {
     const [appliances, setAppliances] = useState<Appliance[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [serviceTarget, setServiceTarget] = useState<Appliance | null>(null);
     const [upgradeModal, setUpgradeModal] = useState<{
         open: boolean;
@@ -216,13 +217,18 @@ export const Appliances: React.FC = () => {
     useEffect(() => { fetchAppliances(); }, []);
 
     const fetchAppliances = async () => {
+        setIsInitialLoading(true);
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/usage/appliances`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setAppliances(res.data);
-        } catch (e) { console.error('Fetch appliances', e); }
+        } catch (e) {
+            console.error('Fetch appliances', e);
+        } finally {
+            setIsInitialLoading(false);
+        }
     };
 
     const handleAdd = async (e: React.FormEvent) => {
@@ -377,6 +383,14 @@ export const Appliances: React.FC = () => {
     const totalConsumption = appliances.reduce((a, c) => a + (c.wattage * c.dailyUsageHours) / 1000, 0);
     const expiredCount = appliances.filter(a => getWarrantyStatus(a) === 'expired').length;
     const overCapCount = appliances.filter(isRunningAtMaxCapacity).length;
+
+    if (isInitialLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto">

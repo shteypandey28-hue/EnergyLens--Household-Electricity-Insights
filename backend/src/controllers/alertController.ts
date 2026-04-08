@@ -14,7 +14,7 @@ export const getAlerts = async (req: Request, res: Response) => {
         const today = new Date();
         const startOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         
-        // 1. Budget Alert Check
+        // 1. Budget Alerts & Insights
         const readingsThisMonth = await MeterReading.find({
             user: userId,
             date: { $gte: startOfThisMonth }
@@ -22,47 +22,80 @@ export const getAlerts = async (req: Request, res: Response) => {
         const currentSpends = readingsThisMonth.reduce((acc, r) => acc + (r.cost || 0), 0);
         const budget = user.monthlyBudget || 3000;
         
-        if (currentSpends > budget * 0.8) {
-            // Check if we already alerted this month about budget
-            const existingBudgetAlert = await Alert.findOne({
-                user: userId,
-                type: 'budget_exceeded',
-                createdAt: { $gte: startOfThisMonth }
-            });
-            
-            if (!existingBudgetAlert) {
-                await Alert.create({
-                    user: userId,
-                    type: 'budget_exceeded',
-                    severity: currentSpends > budget ? 'critical' : 'high',
-                    title: currentSpends > budget ? 'Budget Exceeded!' : 'Approaching Monthly Budget',
-                    message: `You have spent ₹${currentSpends.toFixed(0)} which is ${(currentSpends / budget * 100).toFixed(0)}% of your ₹${budget} budget.`,
-                });
+        if (currentSpends > 0) {
+            if (currentSpends > budget * 0.8) {
+                const existingBudgetAlert = await Alert.findOne({ user: userId, type: 'budget_exceeded', createdAt: { $gte: startOfThisMonth } });
+                if (!existingBudgetAlert) {
+                    await Alert.create({
+                        user: userId, type: 'budget_exceeded',
+                        severity: currentSpends > budget ? 'critical' : 'high',
+                        title: currentSpends > budget ? 'Budget Exceeded!' : 'Approaching Monthly Budget',
+                        message: `You have spent ₹${currentSpends.toFixed(0)} which is ${(currentSpends / budget * 100).toFixed(0)}% of your ₹${budget} budget.`,
+                    });
+                }
+            } else if (currentSpends <= budget * 0.5) {
+                // Positive insight
+                const existingPositive = await Alert.findOne({ user: userId, type: 'usage_milestone', createdAt: { $gte: startOfThisMonth } });
+                if (!existingPositive) {
+                    await Alert.create({
+                        user: userId, type: 'usage_milestone', severity: 'low',
+                        title: 'Great Job on Budget!',
+                        message: `You are well within your budget this month, having spent only ₹${currentSpends.toFixed(0)} so far. Keep it up!`,
+                    });
+                }
             }
         }
 
-        // 2. Heavy Appliance Anomaly Check
+        // 2. Heavy Appliance / Top Consumer Insight
         const appliances = await Appliance.find({ user: userId });
-        const heavyHitters = appliances.filter(a => ((a.wattage || 0) * (a.dailyUsageHours || 0)) > 10000); // > 10 kWh/day
-        
-        for (const appliance of heavyHitters) {
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - 7);
-            
-            const existingHeavyAlert = await Alert.findOne({
-                user: userId,
-                type: 'appliance_anomaly',
-                createdAt: { $gte: startOfWeek } // max 1 alert per week
+        if (appliances.length > 0) {
+            // Find the highest consuming appliance
+            const topAppliance = appliances.reduce((best, curr) => {
+                const bestTotal = (best.wattage || 0) * (best.dailyUsageHours || 0);
+                const currTotal = (curr.wattage || 0) * (curr.dailyUsageHours || 0);
+                return currTotal > bestTotal ? curr : best;
             });
+
+            const topDailyKwh = ((topAppliance.wattage || 0) * (topAppliance.dailyUsageHours || 0)) / 1000;
             
-            if (!existingHeavyAlert) {
-                await Alert.create({
-                    user: userId,
-                    type: 'appliance_anomaly',
-                    severity: 'medium',
-                    title: 'High Consumption Appliance Detected',
-                    message: `Your ${appliance.name} is consuming over ${((appliance.wattage || 0) * (appliance.dailyUsageHours || 0) / 1000).toFixed(1)} kWh daily. Ensure it is serviced regularly to maintain efficiency.`,
-                });
+            if (topDailyKwh > 3) { // Reduced threshold so insight shows up
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - 7);
+                
+                const existingHeavyAlert = await Alert.findOne({ user: userId, type: 'appliance_anomaly', createdAt: { $gte: startOfWeek } });
+                if (!existingHeavyAlert) {
+                    await Alert.create({
+                        user: userId,
+                        type: 'appliance_anomaly',
+                        severity: topDailyKwh > 10 ? 'high' : 'medium',
+                        title: 'Top Energy Consumer Identified',
+                        message: `Your ${topAppliance.name} is your heaviest consumer, using roughly ${topDailyKwh.toFixed(1)} kWh daily. Consider running it during off-peak hours or checking its efficiency.`,
+                    });
+                }
+            }
+        }
+
+        // 3. Spikes in Daily Usage
+        if (readingsThisMonth.length >= 2) {
+            // Find max usage day
+            const maxReading = readingsThisMonth.reduce((max, curr) => curr.unitsConsumed > max.unitsConsumed ? curr : max);
+            // Average excluding max
+            const others = readingsThisMonth.filter(r => r._id !== maxReading._id);
+            const avgOthers = others.reduce((acc, r) => acc + r.unitsConsumed, 0) / (others.length || 1);
+            
+            // If the max day is 50% higher than average
+            if (maxReading.unitsConsumed > avgOthers * 1.5 && others.length > 0) {
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - 7);
+
+                const existingSpike = await Alert.findOne({ user: userId, type: 'bill_spike', createdAt: { $gte: startOfWeek } });
+                if (!existingSpike) {
+                    await Alert.create({
+                        user: userId, type: 'bill_spike', severity: 'high',
+                        title: 'Apparent Usage Spike',
+                        message: `We noticed an unusual spike on ${new Date(maxReading.date).toLocaleDateString()}. You consumed ${maxReading.unitsConsumed} units, which is notably higher than your average of ${avgOthers.toFixed(1)} units.`,
+                    });
+                }
             }
         }
         // ─────────────────────────────────────────────────────────────────
