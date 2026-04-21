@@ -850,7 +850,7 @@ export const Appliances: React.FC = () => {
                                 Add More Appliance Slots
                             </h2>
                             <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">
-                                Each additional slot costs <span className="font-bold text-blue-600 dark:text-blue-400">₹9</span>. Slots are permanent and never expire.
+                                Each additional slot costs <span className="font-bold text-blue-600 dark:text-blue-400">₹19</span>. Slots are permanent and never expire.
                             </p>
 
                             {/* Quantity picker */}
@@ -894,8 +894,8 @@ export const Appliances: React.FC = () => {
                             {/* Price summary */}
                             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-5 border border-blue-100 dark:border-blue-800/50">
                                 <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-gray-500 dark:text-gray-400">{addonQty} slot{addonQty > 1 ? 's' : ''} × ₹9</span>
-                                    <span className="font-bold text-gray-900 dark:text-white">₹{addonQty * 9}</span>
+                                    <span className="text-gray-500 dark:text-gray-400">{addonQty} slot{addonQty > 1 ? 's' : ''} × ₹19</span>
+                                    <span className="font-bold text-gray-900 dark:text-white">₹{addonQty * 19}</span>
                                 </div>
                                 <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500">
                                     <span>New appliance limit</span>
@@ -922,7 +922,7 @@ export const Appliances: React.FC = () => {
                                 className="w-full h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm transition-all shadow-md shadow-blue-500/25 disabled:opacity-60 flex items-center justify-center gap-2"
                             >
                                 <ShoppingCart className="h-4 w-4" />
-                                {addonLoading ? 'Processing...' : `Pay ₹${addonQty * 9} & Add ${addonQty} Slot${addonQty > 1 ? 's' : ''}`}
+                                {addonLoading ? 'Processing...' : `Pay ₹${addonQty * 19} & Add ${addonQty} Slot${addonQty > 1 ? 's' : ''}`}
                             </button>
                             <button
                                 onClick={() => { setAddonModal(false); setAddonError(''); setAddonSuccess(''); }}

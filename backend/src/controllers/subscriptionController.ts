@@ -29,13 +29,13 @@ export const subscribe = async (req: Request, res: Response) => {
     const { plan } = req.body;
 
     const PLAN_PRICES: Record<string, number> = {
-        basic: 49,
-        premium: 99,
-        pro: 99,
+        basic: 149,
+        premium: 299,
+        pro: 299,
     };
 
     const planKey = plan === 'pro' ? 'premium' : plan;
-    const price = PLAN_PRICES[plan] || 99;
+    const price = PLAN_PRICES[plan] || 299;
 
     try {
         // Create transaction record (demo mode - instant success)
