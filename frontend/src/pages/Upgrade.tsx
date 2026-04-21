@@ -161,7 +161,7 @@ export const Upgrade: React.FC = () => {
             ctaClass: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-not-allowed',
         },
         {
-            id: 'basic', name: 'Basic', price: 49, period: '/month',
+            id: 'basic', name: 'Basic', price: 149, period: '/month',
             description: 'Advanced analytics for power users',
             icon: Zap, iconBg: 'bg-blue-100 dark:bg-blue-900/40', iconColor: 'text-blue-600 dark:text-blue-400',
             border: 'border-blue-200 dark:border-blue-700',
@@ -171,7 +171,7 @@ export const Upgrade: React.FC = () => {
             ctaClass: 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25',
         },
         {
-            id: 'pro', name: 'Premium', price: 99, period: '/month',
+            id: 'pro', name: 'Premium', price: 299, period: '/month',
             description: 'Complete power with AI insights',
             icon: Crown, iconBg: 'bg-amber-100 dark:bg-amber-900/40', iconColor: 'text-amber-600 dark:text-amber-400',
             border: 'border-amber-300 dark:border-amber-700',

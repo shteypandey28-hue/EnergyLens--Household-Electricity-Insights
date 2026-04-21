@@ -10,8 +10,8 @@ const razorpay = new Razorpay({
 });
 
 const PLAN_PRICES: Record<string, { amount: number; label: string; role: 'basic' | 'premium' }> = {
-    basic:   { amount: 4900,  label: 'Basic Plan',   role: 'basic'   }, // ₹49 in paise
-    premium: { amount: 9900,  label: 'Premium Plan', role: 'premium' },
+    basic:   { amount: 14900, label: 'Basic Plan',   role: 'basic'   }, // ₹149 in paise
+    premium: { amount: 29900, label: 'Premium Plan', role: 'premium' }, // ₹299 in paise
 };
 
 // ── POST /api/payment/create-order ──────────────────────────
@@ -151,7 +151,7 @@ export const createAddonOrder = async (req: Request, res: Response) => {
         return res.status(403).json({ message: 'Appliance add-ons are only available for Premium users.' });
     }
 
-    const PRICE_PER_SLOT = 900; // ₹9 in paise
+    const PRICE_PER_SLOT = 1900; // ₹19 in paise
     const totalAmount = PRICE_PER_SLOT * quantity;
 
     try {
@@ -205,7 +205,7 @@ export const verifyAddonPayment = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Addon payment verification failed. Invalid signature.' });
         }
 
-        const PRICE_PER_SLOT = 9; // ₹9
+        const PRICE_PER_SLOT = 19; // ₹19
         const totalAmount = PRICE_PER_SLOT * quantity;
 
         // 2. Record transaction
@@ -230,7 +230,7 @@ export const verifyAddonPayment = async (req: Request, res: Response) => {
         );
 
         res.json({
-            message: `Successfully added ${quantity} appliance slot${quantity > 1 ? 's' : ''}! You can now add up to ${30 + (updatedUser?.extraApplianceSlots || 0)} appliances.`,
+            message: `Successfully added ${quantity} appliance slot${quantity > 1 ? 's' : ''} at ₹19 each! You can now add up to ${30 + (updatedUser?.extraApplianceSlots || 0)} appliances.`,
             extraApplianceSlots: updatedUser?.extraApplianceSlots,
         });
     } catch (error: any) {
