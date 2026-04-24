@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './middleware/logger';
+import { initNotificationScheduler } from './utils/notificationScheduler';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ import alertRoutes from './routes/alertRoutes';
 import householdRoutes from './routes/householdRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
 import tariffRoutes from './routes/tariffRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usage', usageRoutes);
@@ -51,6 +53,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/households', householdRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/tariffs', tariffRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/', (_req, res) => {
@@ -81,7 +84,11 @@ app.use(errorHandler);
 // ─── Database ────────────────────────────────────────────────
 mongoose
     .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/energylens')
-    .then(() => console.log('✅ MongoDB connected successfully'))
+    .then(() => {
+        console.log('✅ MongoDB connected successfully');
+        // Start the daily email notification scheduler
+        initNotificationScheduler();
+    })
     .catch((err) => {
         console.error('❌ MongoDB connection error name:', err?.name);
         console.error('❌ MongoDB connection error message:', err?.message);

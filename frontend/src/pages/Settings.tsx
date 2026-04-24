@@ -4,11 +4,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import {
     User, Moon, Sun, Monitor, Save, Bell, Shield, Crown,
-    ChevronDown
+    ChevronDown, Mail, Zap, Wrench, AlertTriangle, BadgeCheck
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import api from '../api';
 import { format } from 'date-fns';
 
 const INDIAN_STATES = [
@@ -53,6 +54,8 @@ export const Settings: React.FC = () => {
     const [notifAnomaly, setNotifAnomaly] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isChangingPwd, setIsChangingPwd] = useState(false);
+    const [isSendingTest, setIsSendingTest] = useState(false);
+    const [testEmailResult, setTestEmailResult] = useState<'success' | 'error' | null>(null);
     const [message, setMessage] = useState({ text: '', type: '' });
     const [isManagingSubscription, setIsManagingSubscription] = useState(false);
     const [subscriptionStatus, setSubscriptionStatus] = useState<{
@@ -108,6 +111,22 @@ export const Settings: React.FC = () => {
     const showMsg = (text: string, type: 'success' | 'error') => {
         setMessage({ text, type });
         setTimeout(() => setMessage({ text: '', type: '' }), 3500);
+    };
+
+    const handleSendTestEmail = async () => {
+        setIsSendingTest(true);
+        setTestEmailResult(null);
+        try {
+            await api.post('/api/notifications/test-email');
+            setTestEmailResult('success');
+            showMsg('Test email sent! Check your inbox.', 'success');
+        } catch (err: any) {
+            setTestEmailResult('error');
+            showMsg(err?.response?.data?.message || 'Failed to send test email. Check SMTP settings.', 'error');
+        } finally {
+            setIsSendingTest(false);
+            setTimeout(() => setTestEmailResult(null), 4000);
+        }
     };
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -274,10 +293,10 @@ export const Settings: React.FC = () => {
             <Section title="Notification Preferences" icon={Bell} iconBg="bg-amber-100 dark:bg-amber-900/30" iconColor="text-amber-600 dark:text-amber-400" delay={0.1}>
                 <div className="space-y-4">
                     {[
-                        { label: 'Email notifications', sub: 'Receive weekly reports and alerts via email', value: notifEmail, set: setNotifEmail },
-                        { label: 'Budget alerts', sub: 'Notify when approaching or exceeding monthly budget', value: notifBudget, set: setNotifBudget },
-                        { label: 'Peak hour alerts', sub: 'Warning when high usage is detected in peak hours', value: notifPeak, set: setNotifPeak },
-                        { label: 'Anomaly detection', sub: 'Alert on unusual appliance consumption patterns', value: notifAnomaly, set: setNotifAnomaly },
+                        { label: 'Email notifications', sub: 'Master toggle — enables all email alerts below', value: notifEmail, set: setNotifEmail },
+                        { label: 'Budget alerts', sub: 'Email when you hit 80%+ of your monthly budget', value: notifBudget, set: setNotifBudget },
+                        { label: 'Peak hour alerts', sub: 'Warning when high usage detected in peak hours', value: notifPeak, set: setNotifPeak },
+                        { label: 'Anomaly detection', sub: 'Alerts for service due, warranty expiry & max capacity', value: notifAnomaly, set: setNotifAnomaly },
                     ].map(({ label, sub, value, set }) => (
                         <div key={label} className="flex items-center justify-between py-2">
                             <div>
@@ -290,9 +309,56 @@ export const Settings: React.FC = () => {
                             </button>
                         </div>
                     ))}
-                    <button onClick={handleUpdateProfile} className="mt-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-sm">
-                        Save Preferences
-                    </button>
+
+                    {/* Email triggers info */}
+                    <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-blue-500" />
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">What triggers an email?</span>
+                        </div>
+                        <div className="divide-y divide-slate-100 dark:divide-slate-700/60">
+                            {[
+                                { icon: Wrench, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', label: 'Service Reminder', desc: '7 days before (or after) service is due' },
+                                { icon: BadgeCheck, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20', label: 'Warranty Expiry', desc: '7 days before warranty ends' },
+                                { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', label: 'Budget Overrun', desc: 'When you cross 80% of your monthly budget' },
+                                { icon: Zap, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20', label: 'Max Capacity Usage', desc: 'Appliance running beyond manufacturer safe hours' },
+                            ].map(({ icon: Icon, color, bg, label, desc }) => (
+                                <div key={label} className="flex items-center gap-3 px-4 py-3">
+                                    <div className={`p-2 rounded-lg ${bg} flex-shrink-0`}>
+                                        <Icon className={`h-3.5 w-3.5 ${color}`} />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{label}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{desc}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-1">
+                        <button onClick={handleUpdateProfile} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-sm">
+                            Save Preferences
+                        </button>
+                        <button
+                            id="test-email-btn"
+                            onClick={handleSendTestEmail}
+                            disabled={isSendingTest || !notifEmail}
+                            title={!notifEmail ? 'Enable email notifications first' : 'Send a test email to your inbox'}
+                            className={clsx(
+                                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
+                                testEmailResult === 'success'
+                                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
+                                    : testEmailResult === 'error'
+                                        ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50'
+                            )}
+                        >
+                            <Mail className="h-4 w-4" />
+                            {isSendingTest ? 'Sending…' : testEmailResult === 'success' ? '✓ Sent!' : testEmailResult === 'error' ? '✗ Failed' : 'Send Test Email'}
+                        </button>
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Emails are delivered daily at 8:00 AM IST. Max one email per alert type per week.</p>
                 </div>
             </Section>
 
