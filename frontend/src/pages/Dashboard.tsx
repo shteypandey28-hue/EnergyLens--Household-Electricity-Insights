@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ConsumptionChart } from '../components/Dashboard/ConsumptionChart';
+import LiveApplianceMonitor from '../components/LiveApplianceMonitor';
 import {
     Zap, IndianRupee, Leaf, RefreshCw, TrendingUp, TrendingDown,
     Award, AlertTriangle, Lightbulb, Target, Tv, Clock,
@@ -43,6 +44,7 @@ interface MiniCardProps {
     isDark?: boolean;
 }
 
+// ─── Moved outside component to avoid recreation on every render ─────────
 const colorMap = (isDark: boolean) => ({
     blue: { bg: isDark ? 'bg-blue-900/10' : 'bg-blue-50/70', icon: isDark ? 'bg-blue-900/40 text-blue-400' : 'bg-blue-100 text-blue-600', text: isDark ? 'text-blue-300' : 'text-blue-700', ring: isDark ? 'border-blue-800/30' : 'border-blue-200/50' },
     green: { bg: isDark ? 'bg-emerald-900/10' : 'bg-emerald-50/70', icon: isDark ? 'bg-emerald-900/40 text-emerald-400' : 'bg-emerald-100 text-emerald-600', text: isDark ? 'text-emerald-300' : 'text-emerald-700', ring: isDark ? 'border-emerald-800/30' : 'border-emerald-200/50' },
@@ -52,7 +54,7 @@ const colorMap = (isDark: boolean) => ({
     slate: { bg: isDark ? 'bg-slate-800/20' : 'bg-slate-50/70', icon: isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600', text: isDark ? 'text-slate-300' : 'text-slate-700', ring: isDark ? 'border-slate-700/30' : 'border-slate-200/50' },
 });
 
-const MiniCard: React.FC<MiniCardProps> = ({ title, value, unit, icon: Icon, color, trend, delay = 0, subtitle, isDark = true }) => {
+const MiniCard: React.FC<MiniCardProps> = React.memo(({ title, value, unit, icon: Icon, color, trend, delay = 0, subtitle, isDark = true }) => {
     const c = colorMap(isDark)[color];
     return (
         <motion.div
@@ -79,7 +81,7 @@ const MiniCard: React.FC<MiniCardProps> = ({ title, value, unit, icon: Icon, col
             </div>
         </motion.div>
     );
-};
+});
 
 // ─── Efficiency Score Ring ────────────────────────────────────
 const EfficiencyScore: React.FC<{ score: number; isDark: boolean }> = ({ score, isDark }) => {
@@ -141,7 +143,10 @@ export const Dashboard: React.FC = () => {
     const [appliances, setAppliances] = useState<any[]>([]);
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isInitialLoading, setIsInitialLoading] = useState(true);
+    // Lazy init: if cache already has data, start ready — no spinner flash
+    const [isInitialLoading, setIsInitialLoading] = useState(() =>
+        !getCachedData('readings') || !getCachedData('appliances')
+    );
     const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     const fetchDashboardData = useCallback(async () => {
@@ -343,9 +348,7 @@ export const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Consumption Chart */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.35 }}
+                    initial={false}
                     className="lg:col-span-2 premium-card rounded-3xl p-6 transition-all"
                 >
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-5 gap-4">
@@ -393,9 +396,7 @@ export const Dashboard: React.FC = () => {
                 <div className="space-y-4">
                     {/* Efficiency Score */}
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.4 }}
+                        initial={false}
                         className="premium-card rounded-3xl p-6 transition-all"
                     >
                         <div className="flex items-center gap-2 mb-4">
@@ -425,9 +426,7 @@ export const Dashboard: React.FC = () => {
 
                     {/* Budget Progress */}
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.45 }}
+                        initial={false}
                         className="premium-card rounded-3xl p-6 transition-all"
                     >
                         <div className="flex items-center gap-2 mb-4">
@@ -444,9 +443,7 @@ export const Dashboard: React.FC = () => {
 
                     {/* Savings Opportunities / Onboarding tip */}
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.5 }}
+                        initial={false}
                         className="bg-gradient-to-br from-emerald-50/80 to-teal-50/80 dark:from-emerald-900/30 dark:to-teal-900/20 backdrop-blur-md rounded-3xl border border-emerald-200 dark:border-emerald-800/50 p-6 shadow-sm"
                     >
                         <div className="flex items-center gap-2 mb-3">
@@ -476,14 +473,18 @@ export const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Appliance Breakdown + Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Third Row: IoT Live + Appliance Breakdown + Recent Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* IoT Live Monitor */}
+                <div className="lg:col-span-1">
+                    <LiveApplianceMonitor applianceId="test-fridge-001" applianceName="Smart Fridge (Live)" />
+                </div>
+
                 {/* Appliance Breakdown */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.55 }}
-                    className="premium-card rounded-3xl p-6 transition-all"
+                    initial={false}
+                    className="premium-card rounded-3xl p-6 transition-all lg:col-span-1"
                 >
                     <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Top Energy Consumers</h3>
                     {!hasAppliances ? (
@@ -525,9 +526,7 @@ export const Dashboard: React.FC = () => {
 
                 {/* Recent Activity */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.6 }}
+                    initial={false}
                     className="premium-card rounded-3xl p-6 transition-all"
                 >
                     <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Recent Readings</h3>
@@ -568,9 +567,7 @@ export const Dashboard: React.FC = () => {
             {/* Alert Banner: only show when user has real data */}
             {hasData && (
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.65 }}
+                    initial={false}
                     className="flex items-start gap-3 p-4 bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border border-amber-200 dark:border-amber-800/50 rounded-2xl"
                 >
                     <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />

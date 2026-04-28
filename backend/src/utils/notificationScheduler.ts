@@ -23,11 +23,11 @@ const daysDiff = (a: Date, b: Date) =>
 // ─── Helper: de-duplicate email sends (one per type per week) ────────────────
 const emailSentCache = new Map<string, Date>(); // key: `${userId}:${type}:${itemId}`
 
-const shouldSendEmail = (key: string): boolean => {
+const shouldSendEmail = (key: string, cooldownDays: number = 7): boolean => {
     const last = emailSentCache.get(key);
     if (!last) return true;
     const daysSince = daysDiff(last, new Date());
-    return daysSince >= 7; // don't spam – max once per week per alert type
+    return daysSince >= cooldownDays; // default is max once per week
 };
 
 const markEmailSent = (key: string) => emailSentCache.set(key, new Date());
@@ -68,7 +68,9 @@ export const runNotificationCheck = async () => {
                     // Alert if due within 7 days OR already overdue
                     if (daysUntilService <= SERVICE_WARN_DAYS) {
                         const cacheKey = `${userId}:service:${aId}`;
-                        if (shouldSendEmail(cacheKey)) {
+                        // If it's approaching (within 7 days), send daily (cooldown=1). If overdue, send weekly (cooldown=7)
+                        const cooldown = (daysUntilService >= 0) ? 1 : 7;
+                        if (shouldSendEmail(cacheKey, cooldown)) {
                             await sendServiceDueEmail({
                                 to: userEmail,
                                 userName,
@@ -101,7 +103,9 @@ export const runNotificationCheck = async () => {
                     // Alert if expiring within 7 days OR already expired (for 30 days post-expiry)
                     if (daysLeft <= WARRANTY_WARN_DAYS && daysLeft >= -30) {
                         const cacheKey = `${userId}:warranty:${aId}`;
-                        if (shouldSendEmail(cacheKey)) {
+                        // Send daily if expiring within 7 days. If already expired, send weekly.
+                        const cooldown = (daysLeft > 0) ? 1 : 7;
+                        if (shouldSendEmail(cacheKey, cooldown)) {
                             await sendWarrantyExpiryEmail({
                                 to: userEmail,
                                 userName,
@@ -228,8 +232,8 @@ const createInAppAlert = async (
 // SCHEDULER INIT — call this once from index.ts
 // ══════════════════════════════════════════════════════════════════════════════
 export const initNotificationScheduler = () => {
-    // Run every day at 8:00 AM IST (UTC+5:30 → 02:30 UTC)
-    cron.schedule('30 2 * * *', async () => {
+    // Run every day at 8:00 AM IST
+    cron.schedule('0 8 * * *', async () => {
         await runNotificationCheck();
     }, {
         timezone: 'Asia/Kolkata',

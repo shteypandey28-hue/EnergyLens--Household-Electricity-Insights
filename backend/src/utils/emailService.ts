@@ -1,20 +1,6 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// ─── Transporter ─────────────────────────────────────────────────────────────
-const createTransporter = () => {
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const port = parseInt(process.env.SMTP_PORT || '587');
-    const user = process.env.SMTP_USER || '';
-    const pass = process.env.SMTP_PASS || '';
-
-    return nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465, // true for 465, false for other ports
-        auth: { user, pass },
-        tls: { rejectUnauthorized: false },
-    });
-};
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ─── Shared Email Wrapper ────────────────────────────────────────────────────
 const wrapHtml = (title: string, accentColor: string, body: string): string => `
@@ -283,19 +269,25 @@ export const sendMaxCapacityEmail = async (opts: {
 
 // ─── Core send helper ─────────────────────────────────────────────────────────
 export const sendEmail = async (opts: { to: string; subject: string; html: string; text?: string }) => {
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@energylens.app';
-    const transporter = createTransporter();
+    // Note: Resend Free tier strictly requires sending from onboarding@resend.dev
+    // It also only allows sending to the email you used to sign up for Resend.
+    const from = 'EnergyLens ⚡ <onboarding@resend.dev>';
 
     try {
-        const info = await transporter.sendMail({
-            from: `"EnergyLens ⚡" <${from}>`,
+        const { data, error } = await resend.emails.send({
+            from,
             to: opts.to,
             subject: opts.subject,
             html: opts.html,
-            text: opts.text || opts.subject,
         });
-        console.log(`📧 Email sent → ${opts.to} | msgId: ${info.messageId}`);
-        return { success: true, messageId: info.messageId };
+
+        if (error) {
+            console.error(`❌ Email failed → ${opts.to}:`, error.message);
+            return { success: false, error: error.message };
+        }
+
+        console.log(`📧 Email sent → ${opts.to} | msgId: ${data?.id}`);
+        return { success: true, messageId: data?.id };
     } catch (err: any) {
         console.error(`❌ Email failed → ${opts.to}:`, err?.message);
         return { success: false, error: err?.message };

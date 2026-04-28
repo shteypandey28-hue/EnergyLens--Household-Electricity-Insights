@@ -6,6 +6,7 @@ import path from 'path';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './middleware/logger';
 import { initNotificationScheduler } from './utils/notificationScheduler';
+import { initSocket } from './utils/socket';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ import householdRoutes from './routes/householdRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
 import tariffRoutes from './routes/tariffRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import iotRoutes from './routes/iotRoutes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usage', usageRoutes);
@@ -54,6 +56,7 @@ app.use('/api/households', householdRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/tariffs', tariffRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/iot', iotRoutes);
 
 // Health check
 app.get('/', (_req, res) => {
@@ -99,6 +102,9 @@ const server = app.listen(PORT, () => {
     console.log(`🚀 EnergyLens API v2.0 running on http://localhost:${PORT}`);
     console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+// Initialize Socket.io
+initSocket(server);
 
 // ─── Graceful Shutdown ───────────────────────────────────────
 process.on('SIGTERM', () => {
